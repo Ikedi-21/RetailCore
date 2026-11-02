@@ -9,6 +9,6 @@ class MoneyTest {
 
     @Test
     void roundUsesHalfUpAtScaleTwo() {
-        assertEquals(new BigDecimal("25.00"), Money.round(new BigDecimal("24.99975")));
+        assertEquals(new BigDecimal("0.13"), Money.round(new BigDecimal("0.125")));
     }
 }
