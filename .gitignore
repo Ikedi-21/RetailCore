@@ -1,8 +1,8 @@
 *vscode
 *.env
-target/,
-data/, 
-*.tmp, 
-.idea/, 
-.vscode/, 
+target/
+data/
+*.tmp 
+.idea/ 
+.vscode/ 
 Thumbs.db
