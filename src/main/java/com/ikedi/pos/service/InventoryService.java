@@ -33,7 +33,7 @@ import java.util.function.Supplier;
 public class InventoryService {
 
     private final ProductRepository products;
-    private final MovementRepository movements;
+    final MovementRepository movements;
     private final Clock clock;
     private final Map<String, ReentrantLock> locks = new ConcurrentHashMap<>();
     private final List<StockListener> listeners = new CopyOnWriteArrayList<>();
@@ -131,8 +131,13 @@ public class InventoryService {
         }
     }
 
-    void applyDeltaLocked(Product product, BigDecimal delta, MovementType type, String reason,
-                          String user, String saleId, List<Runnable> after) {
+    /**
+     * Applies a stock delta, saves the product and appends a movement.
+     * Returns the id of the movement that was appended so callers can roll
+     * it back if a later operation (e.g., persisting the sale) fails.
+     */
+    String applyDeltaLocked(Product product, BigDecimal delta, MovementType type, String reason,
+                             String user, String saleId, List<Runnable> after) {
         if (delta.signum() < 0) {
             product.decreaseQuantity(delta.negate());
         } else {
@@ -140,7 +145,8 @@ public class InventoryService {
         }
         products.save(product);
         LocalDateTime now = LocalDateTime.now(clock);
-        movements.append(new StockMovement(movements.nextId(), type, product.getSku(), delta, reason, user, now, saleId));
+        String movId = movements.nextId();
+        movements.append(new StockMovement(movId, type, product.getSku(), delta, reason, user, now, saleId));
 
         if (delta.signum() < 0 && product.isLowStock()) {
             LowStockEvent event = new LowStockEvent(product.getSku(), product.getName(),
@@ -150,6 +156,7 @@ public class InventoryService {
             String sku = product.getSku();
             after.add(() -> listeners.forEach(l -> l.onStockRecovered(sku)));
         }
+        return movId;
     }
 
     void runAfter(List<Runnable> after) {

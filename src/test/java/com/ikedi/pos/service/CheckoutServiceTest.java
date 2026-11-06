@@ -33,6 +33,7 @@ import com.ikedi.pos.repository.memory.InMemoryMovementRepository;
 import com.ikedi.pos.repository.memory.InMemoryProductRepository;
 import com.ikedi.pos.repository.memory.InMemorySaleRepository;
 import com.ikedi.pos.strategy.PercentageDiscount;
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -49,7 +50,7 @@ class CheckoutServiceTest {
     private final InventoryService inventory = new InventoryService(products, movements, clock());
     private final AlertService alerts = new AlertService();
     private final CheckoutService checkout =
-            new CheckoutService(products, sales, discounts, inventory, new PriceCalculator(), clock());
+            new CheckoutService(products, sales, movements, discounts, inventory, new PriceCalculator(), clock());
 
     CheckoutServiceTest() {
         inventory.addListener(alerts);
@@ -243,7 +244,7 @@ class CheckoutServiceTest {
         Clock later = Clock.fixed(Instant.parse("2026-11-05T10:00:00Z"), ZoneOffset.UTC);
         InventoryService laterInventory = new InventoryService(products, movements, later);
         CheckoutService laterCheckout =
-                new CheckoutService(products, sales, discounts, laterInventory, new PriceCalculator(), later);
+                new CheckoutService(products, sales, movements, discounts, laterInventory, new PriceCalculator(), later);
         Sale voided = laterCheckout.voidSale(sale.getId(), "manager", Role.MANAGER);
 
         assertEquals(SaleStatus.VOIDED, voided.getStatus());
@@ -259,5 +260,26 @@ class CheckoutServiceTest {
         checkout.pay(sale.getId(), "cashier01", PaymentMethod.CASH, bd("400"));
         assertEquals(1, alerts.openAlerts().size());
         assertEquals("A1", alerts.openAlerts().get(0).sku());
+    }
+
+    @Test
+    void savingFailureRollsBackStockAndRemovesMovements() {
+        InMemorySaleRepository failingSales = new InMemorySaleRepository() {
+            @Override
+            public void save(Sale s) {
+                throw new RuntimeException("Disk full simulated");
+            }
+        };
+        CheckoutService failingCheckout = new CheckoutService(products, failingSales, movements, discounts, inventory, new PriceCalculator(), clock());
+        Sale sale = failingCheckout.startSale("cashier01");
+        failingCheckout.addItem(sale.getId(), "cashier01", "WTR001", bd("2"));
+        BigDecimal beforeStock = products.findBySku("WTR001").orElseThrow().getQuantity();
+        int beforeMovements = movements.findAll().size();
+
+        assertThrows(RuntimeException.class, () ->
+                failingCheckout.pay(sale.getId(), "cashier01", PaymentMethod.CASH, bd("1500")));
+
+        assertEquals(beforeStock, products.findBySku("WTR001").orElseThrow().getQuantity());
+        assertEquals(beforeMovements, movements.findAll().size());
     }
 }

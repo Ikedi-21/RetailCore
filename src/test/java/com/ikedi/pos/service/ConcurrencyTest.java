@@ -59,7 +59,7 @@ class ConcurrencyTest {
             pause(5);
         }
     };
-    private final CheckoutService checkout = new CheckoutService(products, sales,
+    private final CheckoutService checkout = new CheckoutService(products, sales, movements,
             new InMemoryDiscountRepository(), inventory, new PriceCalculator(), clock());
 
     private BigDecimal sumOfMovements(String sku, MovementType type) {

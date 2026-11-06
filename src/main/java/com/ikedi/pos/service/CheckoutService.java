@@ -14,6 +14,7 @@ import com.ikedi.pos.model.Sale;
 import com.ikedi.pos.model.SaleItem;
 import com.ikedi.pos.model.SaleStatus;
 import com.ikedi.pos.repository.DiscountRepository;
+import com.ikedi.pos.repository.MovementRepository;
 import com.ikedi.pos.repository.ProductRepository;
 import com.ikedi.pos.repository.SaleRepository;
 import com.ikedi.pos.service.PriceCalculator.PricedLine;
@@ -23,8 +24,10 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -32,25 +35,37 @@ import java.util.concurrent.ConcurrentHashMap;
  * product lock it validates all lines first, and only then deducts stock, so a sale either
  * fully commits or changes nothing (decision D12: stock is checked when adding as feedback
  * and again, authoritatively, at completion).
+ *
+ * <p>Gap fix: if persisting the sale fails after stock has been deducted, the service
+ * restores each product's quantity and removes the movements that were appended in
+ * this operation (D12 known gap, closed in Step 2).
  */
 public class CheckoutService {
 
     private final ProductRepository products;
     private final SaleRepository sales;
+    private final MovementRepository movements;
     private final DiscountRepository discounts;
     private final InventoryService inventory;
     private final PriceCalculator calculator;
     private final Clock clock;
     private final Map<String, Sale> openSales = new ConcurrentHashMap<>();
 
-    public CheckoutService(ProductRepository products, SaleRepository sales, DiscountRepository discounts,
-                           InventoryService inventory, PriceCalculator calculator, Clock clock) {
+    public CheckoutService(ProductRepository products, SaleRepository sales, MovementRepository movements,
+                           DiscountRepository discounts, InventoryService inventory,
+                           PriceCalculator calculator, Clock clock) {
         this.products = products;
         this.sales = sales;
+        this.movements = movements;
         this.discounts = discounts;
         this.inventory = inventory;
         this.calculator = calculator;
         this.clock = clock;
+    }
+
+    public CheckoutService(ProductRepository products, SaleRepository sales, DiscountRepository discounts,
+                           InventoryService inventory, PriceCalculator calculator, Clock clock) {
+        this(products, sales, inventory != null ? inventory.movements : null, discounts, inventory, calculator, clock);
     }
 
     // ---- building the sale ----
@@ -150,12 +165,33 @@ public class CheckoutService {
             }
 
             sale.applyPricing(cart);
+
+            // Deduct stock and collect the movement ids so we can roll back if the save fails.
+            Set<String> addedMovIds = new HashSet<>();
+            List<Map.Entry<Product, BigDecimal>> deducted = new ArrayList<>();
             for (PricedLine line : lines) {
-                inventory.applyDeltaLocked(line.product(), line.quantity().negate(), MovementType.SALE,
-                        "Sale " + saleId, cashier, saleId, after);
+                String movId = inventory.applyDeltaLocked(line.product(), line.quantity().negate(),
+                        MovementType.SALE, "Sale " + saleId, cashier, saleId, after);
+                addedMovIds.add(movId);
+                deducted.add(Map.entry(line.product(), line.quantity()));
             }
+
             sale.complete(method, paid, change, LocalDateTime.now(clock));
-            sales.save(sale);
+            try {
+                sales.save(sale);
+            } catch (RuntimeException saveEx) {
+                // Gap fix (D12): the sale did not persist; undo every stock change made above.
+                System.err.println("WARNING: sale save failed for " + saleId + "; rolling back stock: "
+                        + saveEx.getMessage());
+                if (movements != null) {
+                    movements.removeByIds(addedMovIds);
+                }
+                for (Map.Entry<Product, BigDecimal> entry : deducted) {
+                    entry.getKey().increaseQuantity(entry.getValue());
+                    products.save(entry.getKey());
+                }
+                throw saveEx;
+            }
             return sale;
         });
         openSales.remove(saleId);
