@@ -107,3 +107,4 @@ class DataInitializerTest {
         assertFalse(discountRepo.findAll().isEmpty(), "Expected at least one seed discount");
     }
 }
+
