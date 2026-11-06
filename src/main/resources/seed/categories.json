@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Grains & Staples",
+    "description": "Staple food items, flours, grains and sugar"
+  },
+  {
+    "name": "Bakery & Snacks",
+    "description": "Biscuits, breads, pastries and confectionery"
+  },
+  {
+    "name": "Beverages",
+    "description": "Soft drinks, malts, lagers and drinking water"
+  },
+  {
+    "name": "Dairy & Fresh",
+    "description": "Milk, eggs, meat, fish and fresh farm produce"
+  },
+  {
+    "name": "Personal Care",
+    "description": "Soaps, hygiene and household cleaning products"
+  }
+]
