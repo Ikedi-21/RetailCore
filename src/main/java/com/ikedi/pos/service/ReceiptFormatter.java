@@ -141,3 +141,4 @@ public class ReceiptFormatter {
         return left + " ".repeat(space) + right;
     }
 }
+

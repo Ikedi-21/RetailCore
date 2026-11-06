@@ -437,3 +437,4 @@ public class ReportService {
         return String.format(Locale.US, "%s%,.2f", symbol, Money.round(amount));
     }
 }
+

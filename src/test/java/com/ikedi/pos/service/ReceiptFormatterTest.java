@@ -80,3 +80,4 @@ class ReceiptFormatterTest {
         assertTrue(receipt.contains("Note: Customer return"));
     }
 }
+

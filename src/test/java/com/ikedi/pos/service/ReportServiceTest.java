@@ -185,3 +185,4 @@ class ReportServiceTest {
         assertTrue(formatted.contains("33.33%"));
     }
 }
+
