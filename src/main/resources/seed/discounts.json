@@ -1,0 +1,23 @@
+[
+  {
+    "id": "DSC-BEV-01",
+    "description": "5% off all beverages",
+    "startDate": "2026-01-01",
+    "endDate": "2027-12-31",
+    "target": "CATEGORY",
+    "key": "Beverages",
+    "percent": "5",
+    "type": "PERCENTAGE"
+  },
+  {
+    "id": "DSC-WTR-01",
+    "description": "Buy 2 Get 1 Free on Eva Table Water",
+    "startDate": "2026-01-01",
+    "endDate": "2027-12-31",
+    "sku": "ST-WTR-01",
+    "buy": 2,
+    "free": 1,
+    "type": "BUY_X_GET_Y"
+  }
+]
+

@@ -1,0 +1,27 @@
+[
+  {
+    "id": "SUP-001",
+    "name": "Dangote Foods Ltd",
+    "phone": "08031234567",
+    "email": "sales@dangotefoods.ng"
+  },
+  {
+    "id": "SUP-002",
+    "name": "Chi Farms & Beverages",
+    "phone": "08029876543",
+    "email": "orders@chigroup.ng"
+  },
+  {
+    "id": "SUP-003",
+    "name": "Golden Guinea Breweries",
+    "phone": "08035551122",
+    "email": "info@goldenguinea.ng"
+  },
+  {
+    "id": "SUP-004",
+    "name": "Beloxxi Industries",
+    "phone": "08054443322",
+    "email": "supply@beloxxi.com"
+  }
+]
+
