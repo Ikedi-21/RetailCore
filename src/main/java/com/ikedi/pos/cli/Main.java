@@ -46,6 +46,12 @@ public class Main {
     public static final String DEFAULT_DATA_DIR = "data";
 
     public static void main(String[] args) {
+        // Shortcut to run concurrency demo
+        if (args.length > 0 && "--demo-concurrency".equalsIgnoreCase(args[0])) {
+            com.ikedi.pos.demo.ConcurrencyDemo.main(args);
+            return;
+        }
+
         Path dataDir = Paths.get(DEFAULT_DATA_DIR);
 
         // First run seed data initialization (Step 3)

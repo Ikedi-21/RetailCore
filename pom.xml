@@ -13,6 +13,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <gson.version>2.11.0</gson.version>
         <junit.version>5.10.2</junit.version>
+        <exec.mainClass>com.ikedi.pos.cli.Main</exec.mainClass>
     </properties>
 
     <dependencies>
@@ -51,7 +52,7 @@
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
                 <configuration>
-                    <mainClass>com.ikedi.pos.cli.Main</mainClass>
+                    <mainClass>${exec.mainClass}</mainClass>
                 </configuration>
             </plugin>
         </plugins>
