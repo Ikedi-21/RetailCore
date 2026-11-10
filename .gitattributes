@@ -1,0 +1,14 @@
+# Auto-detect text files and perform LF normalization in git repo
+* text=auto
+
+# Code and configuration
+*.java text eol=lf
+*.xml text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
