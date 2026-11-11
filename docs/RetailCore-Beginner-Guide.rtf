@@ -1,0 +1,146 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Aptos;}{\f1 Consolas;}}
+{\colortbl;\red31\green78\blue121;\red89\green89\blue89;}
+\paperw12240\paperh15840\margl1440\margr1440\margt1200\margb1200
+\widowctrl\viewkind4\viewscale100
+\header\pard\qr\f0\fs18 RetailCore | Beginner Project Guide\par
+\footer\pard\qc\f0\fs18 Aptech Semester 2 Project\par
+\pard\qc\sb240\sa120\cf1\b\f0\fs40 RETAILCORE\par
+\pard\qc\sa160\cf0\b\f0\fs28 The Console Inventory and Point-of-Sale System\par
+\pard\qc\sa300\cf2\b0\fs22 A complete beginner-friendly guide: the problem, how the system works, why it is designed this way, and how to run and test it.\par
+\pard\qc\sa500\cf2\fs20 Prepared from the project README, specification, architecture, demo script, Maven configuration, and source tree.\par
+\pard\sb240\sa120\cf1\b\fs28 1. The project in one simple story\par
+\pard\sa120\cf0\b0\fs22 Imagine a small shop. The shopkeeper needs to know what is on the shelves, ring up what a customer buys, take payment, print a receipt, and know when something is running low. RetailCore is a small computer helper for those jobs. You type instructions into a text window called a console. It remembers the shop's information in JSON files.\par
+\pard\sa120\fs22 It is written in Java 17 or newer. Maven builds and runs it. Gson reads and writes JSON. It does not need a separate database or a graphical window. The project is named RetailCore and is the Aptech Semester 2 project by Ikedi.\par
+\pard\sb200\sa120\cf1\b\fs28 2. Problem statement\par
+\pard\sa120\cf0\b0\fs22 Small retail shops can make mistakes when stock is counted by hand, prices and discounts are worked out differently by different cashiers, expired goods are sold, or sales and costs are not recorded consistently. A shop also needs to control who can change stock or see management reports.\par
+\pard\sa120\fs22 The project addresses this by providing one command-line system to keep product and supplier records, track stock changes, calculate sales and taxes consistently, accept payment methods, keep sale history, raise low-stock alerts, and separate cashier work from manager work. It also aims to keep stock correct when multiple checkouts happen at nearly the same time.\par
+\pard\sa120\fs22 This is a learning/demo application, not a hosted payment gateway or a production multi-store service. CASH, CARD, and TRANSFER are recorded as payment choices; the software does not contact a bank or charge a card.\par
+\pard\sb200\sa120\cf1\b\fs28 3. Who uses it and what can they do?\par
+\pard\sa100\cf0\b\fs22 Cashier\b0\fs22 : sign in, browse products, open a sale, add/update/remove items, view the cart, take/record payment, print or reprint a receipt, view alerts, and change their own password.\par
+\pard\sa100\b Manager\b0 : everything a cashier can do, plus create and unlock accounts, add products and suppliers, receive or adjust stock, write off expired goods, void sales, and view management reports.\par
+\pard\sa120\fs22 Role-based access control means the program checks the signed-in person's role before allowing manager commands.\par
+\pard\sb200\sa120\cf1\b\fs28 4. Important shop words\par
+\pard\sa80\cf0\b SKU\b0\tab A product's short unique code, such as ST-RICE-01.\par
+\pard\sa80\b Cart / sale\b0\tab The items one customer plans to buy.\par
+\pard\sa80\b Stock\b0\tab How many units (or how much weight) the shop has.\par
+\pard\sa80\b Reorder level\b0\tab The amount at which the shop should think about ordering more.\par
+\pard\sa80\b VAT / tax\b0\tab Tax calculated by the program for the sale.\par
+\pard\sa80\b Repository\b0\tab A small helper that saves or fetches a particular kind of data.\par
+\pard\sa80\b Pattern\b0\tab A reusable way to organize code to solve a common design problem.\par
+\pard\sa120\b JSON\b0\tab A readable text format that stores data using named fields and values.\par
+\pard\sb200\sa120\cf1\b\fs28 5. What the system knows about\par
+\pard\sa100\cf0\b\fs22 Products.\b0\fs22 Each has a case-insensitive unique SKU, name, category, supplier, selling and cost prices, quantity, reorder level, tax rate, and status. There are three kinds: Standard products must be sold in whole units; Weighted products allow fractions (for example 3.50 kg); Perishable products have an expiry date and cannot be sold after it.\par
+\pard\sa100\b Sales.\b0 A sale begins OPEN and is kept as the cashier's working cart. On successful payment it becomes COMPLETED and is saved. A manager may void a completed sale; voided sales are kept in history. Sale lines preserve a snapshot of the product name and sale-time price, cost, discounts, and tax, so later product edits do not rewrite history.\par
+\pard\sa100\b Stock movements.\b0 The system records why stock changed: RESTOCK adds stock, SALE removes it, ADJUSTMENT records a count correction, EXPIRED_WRITE_OFF removes expired stock, and VOID_RETURN records a return after a void.\par
+\pard\sa100\b Other records.\b0 Users and roles, suppliers, categories, discount rules, alerts, receipts, sales, and movement history. First startup copies bundled seed data (17 products, 4 suppliers, 5 categories, and discounts) into the local data folder if it does not already exist. Existing local data is not overwritten by normal initialization.\par
+\pard\sb200\sa120\cf1\b\fs28 6. How a request travels through the program\par
+\pard\sa100\cf0\b\fs22 1. You type a command in PosCli, the interactive console.\par
+\pard\sa80\fs22 2. CommandParser splits it into words, while allowing quoted phrases such as a restock reason in quotes.\par
+\pard\sa80\fs22 3. CommandRegistry finds the command and checks whether the current role may use it.\par
+\pard\sa80\fs22 4. A command asks a service to do the actual shop work. For example, checkout uses CheckoutService, InventoryService, and PriceCalculator.\par
+\pard\sa80\fs22 5. Domain objects represent shop things such as Product, Sale, User, or StockMovement.\par
+\pard\sa80\fs22 6. Repository interfaces store or load those things. Production repositories use JSON files; in-memory repositories support fast isolated tests.\par
+\pard\sa120\fs22 This separation makes the console, shop rules, and saving files easier to understand and change independently.\par
+\pard\sb200\sa120\cf1\b\fs28 7. Design patterns and why they are used\par
+\pard\sa100\cf0\b\fs22 Strategy pattern — discounts.\b0\fs22 Each discount is its own interchangeable rule: percentage off, buy-X-get-Y-free, bulk price, or a cart discount. PriceCalculator can ask each rule what it would save without embedding every promotion inside checkout. This makes new promotion types easier to add and test. Discounts do not stack on a line: the best one wins; equal results use the lower rule ID.\par
+\pard\sa100\b Factory pattern — JSON reconstruction.\b0 ProductFactory and DiscountFactory inspect a JSON type label and create the right concrete Java class. A weighted product can therefore come back as WeightedProduct instead of a generic product. This keeps parsing decisions in one place.\par
+\pard\sa100\b Repository pattern — saving data.\b0 Services use interfaces such as ProductRepository rather than knowing file details. JSON implementations save real data; in-memory implementations make tests quick and isolated. This reduces dependence on one storage method.\par
+\pard\sa100\b Observer pattern — low-stock alerts.\b0 InventoryService announces a low-stock event to listeners. AlertService listens and keeps one open alert for a SKU; restocking clears it. Inventory does not need to know the internal details of every alert screen or notification.\par
+\pard\sa100\b Command pattern — console actions.\b0 Each action (for example, product listing or receiving stock) is represented by a command object. The registry can dispatch commands and apply role checks in a consistent way. It also keeps the command loop simpler.\par
+\pard\sa100\b Layered architecture — separating responsibilities.\b0 CLI, commands, services, domain models, and repositories have different jobs. A change to how a prompt is printed should not require rewriting tax arithmetic.\par
+\pard\sa100\b Dependency injection — replaceable collaborators.\b0 Services receive repositories and a java.time.Clock, rather than secretly creating every dependency. The clock can be fixed in tests to check expiry and dates reliably.\par
+\pard\sa120\fs22 Note: the README highlights five named patterns. The project also uses separation into layers and injected dependencies as architectural practices.\par
+\pard\sb200\sa120\cf1\b\fs28 8. Why the money and stock rules matter\par
+\pard\sa100\cf0\b\fs22 Money uses BigDecimal created from text such as "2500.00", not binary floating-point values. Currency is rounded to two decimal places using HALF_UP. This avoids tiny arithmetic errors appearing on receipts. Comparisons use compareTo so 2.0 and 2.00 are treated as the same amount.\par
+\pard\sa100\fs22 Pricing follows an agreed order: calculate eligible line discounts; calculate line subtotals; distribute any eligible cart discount proportionally; then calculate tax per line. If two discounts compete on a line, only the best single discount applies.\par
+\pard\sa100\fs22 At checkout the system locks products in sorted SKU order and checks stock again while holding the locks. This prevents two cashiers from both selling the same last item. If saving fails after stock changes, the intended behavior is to restore the quantities and remove the new movement entries. Sorting lock order also prevents two checkouts from waiting on each other in opposite order.\par
+\pard\sa100\fs22 JSON updates are written through a temporary file and moved into place atomically when the file system supports it. This helps avoid leaving a half-written data file after an interrupted save. It is still a simple local-file store, not a replacement for a managed database backup strategy.\par
+\pard\sb200\sa120\cf1\b\fs28 9. Getting ready as a beginner\par
+\pard\sa100\cf0\b\fs22 You need\b0\fs22 : JDK 17 or newer and Maven 3.9 or newer. Open PowerShell or a terminal. If the mvn command is not found, install/configure Maven or use the project's Maven wrapper if one is later added (none is listed in this repository).\par
+\pard\sa100\fs22 Go to the console-pos project folder. In PowerShell, for example:\par
+\pard\li360\sa120\f1\fs20 cd C:\\Projects\\Aptech-Eprojects\\Semester-2-project\\console-pos\par
+\pard\li0\sa100\f0\fs22 Build and run the automated test suite:\par
+\pard\li360\sa120\f1\fs20 mvn clean test\par
+\pard\li0\sa100\f0\fs22 Build, test, and package the project:\par
+\pard\li360\sa120\f1\fs20 mvn clean verify\par
+\pard\li0\sa100\fs22 Start the interactive application:\par
+\pard\li360\sa120\f1\fs20 mvn exec:java\par
+\pard\li0\sa120\f0\fs22 Maven may need internet access the first time to download dependencies. Wait until the console displays its prompt before typing application commands. Type help to see commands allowed for your current role; type exit to quit.\par
+\pard\sb200\sa120\cf1\b\fs28 10. First login and demo password\par
+\pard\sa100\cf0\b\fs22 Default seeded manager\b0\fs22 : username manager, password ChangeMe123. This is a demo credential, not a safe real-world password. On first login the program requires the manager to choose a new password before doing other work.\par
+\pard\li360\sa80\f1\fs20 login manager ChangeMe123\par
+\pard\li360\sa80\f1\fs20 change-password ChangeMe123 MyNewPass123\par
+\pard\li0\sa100\f0\fs22 In the example, replace MyNewPass123 with a password you choose. The change-password command expects old password first and new password second. Keep the new password for your next login. Passwords are stored as salted hashes, not readable plain text, according to the project specification. After three consecutive failed login attempts, the account is locked; a manager can unlock users.\par
+\pard\sa100\fs22 The demo credential is seeded for first use. If you have already changed it, ChangeMe123 will no longer work. If the manager account is locked or its password is forgotten, close the program and run the documented manager recovery startup option:\par
+\pard\li360\sa120\f1\fs20 mvn exec:java "-Dexec.args=--reset-manager"\par
+\pard\li0\sa120\f0\fs22 Use this recovery option only for the local demo environment; it is an administrative recovery path.\par
+\pard\sb200\sa120\cf1\b\fs28 11. Beginner walkthrough: make a small sale\par
+\pard\sa100\cf0\b\fs22 A. Start the program with mvn exec:java, then sign in and change the default password if prompted.\par
+\pard\sa80\fs22 B. Type products to see available items and their SKUs. Product names/codes in your data may differ if you have already changed local data.\par
+\pard\sa80\fs22 C. Start a sale, add an item, inspect it, then pay:\par
+\pard\li360\sa70\f1\fs20 sale-start\par
+\pard\li360\sa70\f1\fs20 sale-add ST-RICE-01 2\par
+\pard\li360\sa70\f1\fs20 sale-show\par
+\pard\li360\sa70\f1\fs20 sale-pay CASH 25000\par
+\pard\li0\sa100\f0\fs22 ST-RICE-01 is a sample SKU shown in the demo script; check products first and use an SKU that exists in your local list. The final number is the cash tendered, not a required fixed price. Enter enough to cover the total; use the amount shown by sale-show.\par
+\pard\sa80\fs22 D. Read the receipt. The application reports the sale ID; use that exact ID to reprint it later:\par
+\pard\li360\sa70\f1\fs20 receipt SALE-000001\par
+\pard\li0\sa100\f0\fs22 E. Try products, product-view SKU, sale-update SKU quantity, sale-remove SKU, sale-show, alerts, and logout. Start another session or sale to explore.\par
+\pard\sb200\sa120\cf1\b\fs28 12. A safe manager demo path\par
+\pard\sa100\cf0\b\fs22 After manager login, you can try these features. Use real IDs and values from products or suppliers when needed:\par
+\pard\li360\sa70\f1\fs20 user-create demo CASHIER CashierPass123\par
+\pard\li360\sa70\f1\fs20 logout\par
+\pard\li360\sa70\f1\fs20 login demo CashierPass123\par
+\pard\li360\sa70\f1\fs20 help\par
+\pard\li0\sa80\f0\fs22 This shows that a cashier has fewer commands. Log out and sign back in as manager to try manager-only commands:\par
+\pard\li360\sa70\f1\fs20 report-daily\par
+\pard\li360\sa70\f1\fs20 report-top-qty\par
+\pard\li360\sa70\f1\fs20 report-top-rev\par
+\pard\li360\sa70\f1\fs20 report-low-stock\par
+\pard\li360\sa70\f1\fs20 report-expiring 30\par
+\pard\li360\sa70\f1\fs20 report-profit\par
+\pard\li0\sa100\f0\fs22 Manager stock commands include stock-receive SKU quantity reason, stock-adjust SKU delta reason, and stock-write-off SKU. A sale can be voided with sale-void saleId reason. Read the command syntax in the README and check products/suppliers before using identifiers.\par
+\pard\sa100\fs22 Optional concurrency demo (run after exiting the interactive app):\par
+\pard\li360\sa100\f1\fs20 mvn exec:java "-Dexec.mainClass=com.ikedi.pos.demo.ConcurrencyDemo"\par
+\pard\li0\sa120\f0\fs22 This is a separate demonstration of concurrent checkout and lock ordering; it is not a cashier command.\par
+\pard\sb200\sa120\cf1\b\fs28 13. How to test it\par
+\pard\sa100\cf0\b\fs22 Automated tests\b0\fs22 : from the project directory run mvn clean test. Maven compiles the application and runs JUnit tests. A successful summary ends with BUILD SUCCESS and reports tests run, failures, and errors. The README, demo script, and timeline do not agree on a single test count, so use the live Maven result as the current source of truth. To also ensure packaging works, run mvn clean verify.\par
+\pard\sa100\fs22 The test folders cover money arithmetic, product rules, discounts, pricing, checkout, authentication, inventory, reports, receipts, JSON repositories, command parsing/registry, CLI behavior, initialization, and concurrency. A test is a small automatic check: it prepares sample data, calls a method, and checks whether the answer matches expectations.\par
+\pard\sa100\b Manual checks\b0 : start the app and check help, login/logout, product list, a sale, receipt, alerts and reports. Try a fractional quantity for a weighted item and a fractional quantity for a standard item; the latter should be rejected. Try a cashier command that requires manager access; it should be unavailable/denied. Try adding more than the available stock; checkout should reject it.\par
+\pard\sa100\fs22 Do not expect the exact same outputs after every run: sales, stock, and the password are saved in your local data folder. First-start seed values apply only when data files are initialized.\par
+\pard\sb200\sa120\cf1\b\fs28 14. Where data lives and how to reset your demo\par
+\pard\sa100\cf0\fs22 Runtime records are kept under data/ as JSON files such as products.json, users.json, sales.json, and movements.json. The seed templates are in src/main/resources/seed/. Do not edit files while the app is running. To keep your work, back up the data folder before making changes.\par
+\pard\sa100\fs22 For a fresh demo, close the application and rename or move the local data folder aside, then start it again so seed files can initialize a clean data set. This removes the local demo state from the active path, so back it up first if you want to keep any sales or password changes.\par
+\pard\sb200\sa120\cf1\b\fs28 15. Common beginner problems\par
+\pard\sa80\cf0\b\fs22 mvn is not recognized\b0\tab Maven is not installed or not on PATH. Install/configure Maven 3.9+ and reopen the terminal.\par
+\pard\sa80\b Java version error\b0\tab Install/use JDK 17+. Check java -version and mvn -version.\par
+\pard\sa80\b Command not allowed\b0\tab Sign in with the right role. Manager commands are hidden or blocked for cashiers.\par
+\pard\sa80\b Unknown SKU\b0\tab Type products and copy an exact SKU from the list. SKU matching ignores upper/lower case, but spelling must still match.\par
+\pard\sa80\b Password not accepted\b0\tab The seeded password works only before it is changed. Three consecutive wrong attempts lock the account.\par
+\pard\sa80\b Test or command output is different\b0\tab Existing data may have been modified. The data folder persists between runs.\par
+\pard\sa120\b Quoted reason with spaces\b0\tab Put it in quotes, for example stock-receive ST-BSK-02 5 "Weekly delivery".\par
+\pard\sb200\sa120\cf1\b\fs28 16. Project map: where to look in the source\par
+\pard\sa80\cf0\f1\fs20 src/main/java/com/ikedi/pos/cli\f0\fs22\tab App startup, prompt, parser\par
+\pard\sa80\f1\fs20 command\f0\fs22\tab One class/group for each console action\par
+\pard\sa80\f1\fs20 service\f0\fs22\tab Shop rules: checkout, stock, pricing, reports, authentication\par
+\pard\sa80\f1\fs20 model\f0\fs22\tab Product, Sale, User, Supplier, movement and related types\par
+\pard\sa80\f1\fs20 strategy\f0\fs22\tab Discount rule implementations\par
+\pard\sa80\f1\fs20 repository\f0\fs22\tab Data interfaces and JSON/in-memory storage\par
+\pard\sa80\f1\fs20 factory\f0\fs22\tab Rebuild concrete objects from JSON\par
+\pard\sa80\f1\fs20 observer\f0\fs22\tab Low-stock notifications and alerts\par
+\pard\sa80\f1\fs20 util\f0\fs22\tab Money arithmetic, password hashing, JSON adapters\par
+\pard\sa80\f1\fs20 src/test/java\f0\fs22\tab Automated checks grouped by feature\par
+\pard\sa120\f1\fs20 docs\f0\fs22\tab Specification, architecture, timeline, demo script, handoff\par
+\pard\sb200\sa120\cf1\b\fs28 17. Binding decisions in everyday language\par
+\pard\sa80\cf0\f0\fs22 D1-D4: calculate money from exact text, round to cents, keep standard quantities whole, compare amounts numerically.\par
+\pard\sa80\fs22 D5-D9: use a fixed order for discounts and taxes, spread cart discounts fairly, honor cart minimums, compute buy/get quantities consistently, and choose only the best line discount.\par
+\pard\sa80\fs22 D10-D11: only managers void sales; record returns properly; calculate profit from historical sale values before tax and leave voided sales out.\par
+\pard\sa80\fs22 D12-D14: validate stock again while protected by locks, inject a controllable clock for date tests, and keep sale/movement IDs increasing after restart.\par
+\pard\sa80\fs22 D15-D18: display Naira with an NGN fallback, maintain one low-stock alert per SKU and clear it after restock, salt and hash passwords with lockout/recovery, and treat SKU/supplier ID uniqueness without case sensitivity.\par
+\pard\sb200\sa120\cf1\b\fs28 18. A short explanation you can tell your teacher\par
+\pard\li360\ri360\sa160\cf2\i\fs22 "RetailCore is a Java console application for managing a small shop's products, stock, sales, and reports. It uses commands for cashier and manager actions, services for business rules, repositories for JSON data, strategies for discounts, factories to restore product types, and observers for low-stock alerts. It uses precise decimal arithmetic for money and locks stock during checkout so concurrent cashiers cannot sell more than is available. I can build and test it with Maven, then demonstrate login, a sale, a receipt, alerts, and reports."\par
+\pard\sb200\sa120\cf1\b\fs28 19. Project reference files\par
+\pard\sa80\cf0\fs22 README.md is the command reference and quick start. docs/specification.md records functional rules. docs/architecture.md contains the architecture and pattern diagrams. docs/demo-script.md gives a presentation sequence. docs/timeline.md records development milestones. The Java tests under src/test/java show automated examples of expected behavior.\par
+\pard\sb300\qc\cf2\fs18 End of guide\par
+}
